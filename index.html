@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Botonera de Sonidos</title>
+
   <style>
     * {
       box-sizing: border-box;
@@ -38,6 +39,7 @@
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 12px;
+      padding: 0 10px;
     }
 
     button {
@@ -48,61 +50,61 @@
       color: #fff;
       font-size: 14px;
       cursor: pointer;
-      transition: transform 0.1s, background 0.1s;
+      transition: 
+        transform 0.1s,
+        background 0.2s,
+        box-shadow 0.2s;
     }
 
     button:active {
       transform: scale(0.96);
-      background: #333;
     }
 
+    /* 🔥 BOTÓN ACTIVO */
+    button.active {
+      background: #ff9800;
+      box-shadow: 0 0 12px rgba(255, 152, 0, 0.7);
+      color: #000;
+    }
+
+    /* Diferenciamos música */
+    button.music.active {
+      background: #4caf50;
+      box-shadow: 0 0 14px rgba(76, 175, 80, 0.8);
+      color: #000;
+    }
   </style>
 </head>
+
 <body>
+
   <div class="container">
     <h2>Efectos</h2>
     <div id="effectsGrid" class="grid"></div>
   </div>
 
   <div class="container">
-    <h2>Musica</h2>
+    <h2>Música</h2>
     <div id="musicGrid" class="grid"></div>
   </div>
 
-
   <script>
     /* ======================
-       CONFIGURACIÓN SONIDOS
+       CONFIGURACIÓN
        ====================== */
 
+    const FADE_TIME = 2000;
+    const MAX_VOLUME = 1;
+    const FADE_STEPS = 30;
+
     const effects = [
-      { id: 'efecto1', title: 'Efecto 1', src: 'sounds/efecto1.mp3' },
-      { id: 'efecto2', title: 'Efecto 2', src: 'sounds/efecto2.mp3' },
-      { id: 'efecto3', title: 'Efecto 3', src: 'sounds/efecto3.mp3' },
-      { id: 'efecto4', title: 'Efecto 4', src: 'sounds/efecto4.mp3' },
-      { id: 'efecto5', title: 'Efecto 5', src: 'sounds/efecto5.mp3' },
-      { id: 'efecto6', title: 'Efecto 6', src: 'sounds/efecto6.mp3' },
-      { id: 'efecto7', title: 'Efecto 7', src: 'sounds/efecto7.mp3' },
-      { id: 'efecto8', title: 'Efecto 8', src: 'sounds/efecto8.mp3' },
-      { id: 'efecto9', title: 'Efecto 9', src: 'sounds/efecto9.mp3' },
-      { id: 'efecto10', title: 'Efecto 10', src: 'sounds/efecto10.mp3' },
-      { id: 'efecto11', title: 'Efecto 11', src: 'sounds/efecto11.mp3' },
-      { id: 'efecto12', title: 'Efecto 12', src: 'sounds/efecto12.mp3' },
-      { id: 'efecto13', title: 'Efecto 13', src: 'sounds/efecto13.mp3' },
-      { id: 'efecto14', title: 'Efecto 14', src: 'sounds/efecto14.mp3' },
-      { id: 'efecto15', title: 'Efecto 15', src: 'sounds/efecto15.mp3' },
-      { id: 'efecto16', title: 'Efecto 16', src: 'sounds/efecto16.mp3' }
+      { title: 'Agua', src: './efx/agua.mp3' },
+      { title: 'Moviendo Piedra', src: './efx/moviendoPiedra.mp3' }
     ];
 
     const musicas = [
-      { id: 'musica1', title: 'Musica 1', src: 'music/musica1.mp3' },
-      { id: 'musica2', title: 'Musica 2', src: 'music/musica2.mp3' },
-      { id: 'musica3', title: 'Musica 3', src: 'music/musica3.mp3' },
-      { id: 'musica4', title: 'Musica 4', src: 'music/musica4.mp3' },
-      { id: 'musica5', title: 'Musica 5', src: 'music/musica5.mp3' },
-      { id: 'musica6', title: 'Musica 6', src: 'music/musica6.mp3' },
-      { id: 'musica7', title: 'Musica 7', src: 'music/musica7.mp3' },
-      { id: 'musica8', title: 'Musica 8', src: 'music/musica8.mp3' }
+      { title: 'Fiesta', src: 'music/fiesta.mp3' },
+      { title: 'Árabe', src: 'music/arabe.mp3' }
     ];
 
     /* ======================
@@ -112,27 +114,92 @@
     const effectsGrid = document.getElementById('effectsGrid');
     const musicGrid = document.getElementById('musicGrid');
 
-    function createButton({ title, src }, className) {
+    let currentMusic = null;
+    let currentMusicButton = null;
+
+    function fadeOut(audio, callback) {
+      if (!audio) return;
+
+      let step = audio.volume / FADE_STEPS;
+      let interval = FADE_TIME / FADE_STEPS;
+
+      const fade = setInterval(() => {
+        audio.volume = Math.max(0, audio.volume - step);
+
+        if (audio.volume <= 0) {
+          clearInterval(fade);
+          audio.pause();
+          audio.currentTime = 0;
+          callback && callback();
+        }
+      }, interval);
+    }
+
+    function fadeIn(audio) {
+      audio.volume = 0;
+      audio.play();
+
+      let step = MAX_VOLUME / FADE_STEPS;
+      let interval = FADE_TIME / FADE_STEPS;
+
+      const fade = setInterval(() => {
+        audio.volume = Math.min(MAX_VOLUME, audio.volume + step);
+        if (audio.volume >= MAX_VOLUME) clearInterval(fade);
+      }, interval);
+    }
+
+    /* 🔊 EFECTOS */
+    function createEffectButton({ title, src }) {
       const btn = document.createElement('button');
-      btn.className = className;
       btn.textContent = title;
 
+      btn.addEventListener('click', () => {
+        const audio = new Audio(src);
+        btn.classList.add('active');
+
+        audio.play();
+
+        audio.addEventListener('ended', () => {
+          btn.classList.remove('active');
+        });
+      });
+
+      return btn;
+    }
+
+    /* 🎵 MÚSICA */
+    function createMusicButton({ title, src }) {
+      const btn = document.createElement('button');
+      btn.textContent = title;
+      btn.classList.add('music');
+
       const audio = new Audio(src);
+      audio.loop = true;
 
       btn.addEventListener('click', () => {
-        audio.currentTime = 0;
-        audio.play();
+        if (currentMusic === audio) return;
+
+        if (currentMusic) {
+          fadeOut(currentMusic);
+          currentMusicButton.classList.remove('active');
+        }
+
+        currentMusic = audio;
+        currentMusicButton = btn;
+
+        btn.classList.add('active');
+        fadeIn(audio);
       });
 
       return btn;
     }
 
     effects.forEach(effect => {
-      effectsGrid.appendChild(createButton(effect, 'effect-btn'));
+      effectsGrid.appendChild(createEffectButton(effect));
     });
 
     musicas.forEach(musica => {
-      musicGrid.appendChild(createButton(musica, 'music-btn'));
+      musicGrid.appendChild(createMusicButton(musica));
     });
   </script>
 
