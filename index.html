@@ -31,6 +31,17 @@
       border-bottom: 1px solid #222;
     }
 
+    #loader {
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f0f0f;
+      color: #ff9800;
+      font-size: 20px;
+    }
+
+
     .container {
       padding-bottom: 10px;
     }
@@ -78,130 +89,172 @@
 
 <body>
 
-  <div class="container">
-    <h2>Efectos</h2>
-    <div id="effectsGrid" class="grid"></div>
+  <div id="loader">
+    <h2>Cargando sonidos...</h2>
   </div>
 
-  <div class="container">
-    <h2>Música</h2>
-    <div id="musicGrid" class="grid"></div>
+  <div id="app" style="display:none">
+    <div class="container">
+      <h2>Efectos</h2>
+      <div id="effectsGrid" class="grid"></div>
+    </div>
+
+    <div class="container">
+      <h2>Música</h2>
+      <div id="musicGrid" class="grid"></div>
+    </div>
   </div>
 
-  <script>
-    /* ======================
-       CONFIGURACIÓN
-       ====================== */
+<script>
+  /* ======================
+     CONFIG
+  ====================== */
 
-    const FADE_TIME = 2000;
-    const MAX_VOLUME = 1;
-    const FADE_STEPS = 30;
+  const FADE_TIME = 2000;
+  const MAX_VOLUME = 1;
+  const FADE_STEPS = 30;
 
-    const effects = [
-      { title: 'Agua', src: './efx/agua.mp3' },
-      { title: 'Moviendo Piedra', src: './efx/moviendoPiedra.mp3' }
-    ];
+  const effects = [
+    { title: 'Agua', src: './efx/agua.mp3' },
+    { title: 'Moviendo Piedra', src: './efx/moviendoPiedra.mp3' }
+  ];
 
-    const musicas = [
-      { title: 'Fiesta', src: 'music/fiesta.mp3' },
-      { title: 'Árabe', src: 'music/arabe.mp3' }
-    ];
+  const musicas = [
+    { title: 'Fiesta', src: 'music/fiesta.mp3' },
+    { title: 'Árabe', src: 'music/arabe.mp3' }
+  ];
 
-    /* ======================
-       LÓGICA
-       ====================== */
+  /* ======================
+     PRELOAD
+  ====================== */
 
+  const allAudios = [];
+  let loadedAudios = 0;
+  const totalAudios = effects.length + musicas.length;
+
+  function preloadAudio(src, loop = false) {
+    return new Promise((resolve, reject) => {
+      const audio = new Audio();
+      audio.src = src;
+      audio.loop = loop;
+      audio.preload = 'auto';
+
+      audio.addEventListener('canplaythrough', () => {
+        loadedAudios++;
+        resolve(audio);
+      });
+
+      audio.addEventListener('error', () => {
+        reject(`Error cargando ${src}`);
+      });
+    });
+  }
+
+  async function preloadAll() {
+    for (const e of effects) {
+      e.audio = await preloadAudio(e.src);
+    }
+
+    for (const m of musicas) {
+      m.audio = await preloadAudio(m.src, true);
+    }
+
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initUI();
+  }
+
+  /* ======================
+     FADE
+  ====================== */
+
+  function fadeOut(audio, callback) {
+    let step = audio.volume / FADE_STEPS;
+    let interval = FADE_TIME / FADE_STEPS;
+
+    const fade = setInterval(() => {
+      audio.volume = Math.max(0, audio.volume - step);
+      if (audio.volume <= 0) {
+        clearInterval(fade);
+        audio.pause();
+        audio.currentTime = 0;
+        callback && callback();
+      }
+    }, interval);
+  }
+
+  function fadeIn(audio) {
+    audio.volume = 0;
+    audio.play();
+
+    let step = MAX_VOLUME / FADE_STEPS;
+    let interval = FADE_TIME / FADE_STEPS;
+
+    const fade = setInterval(() => {
+      audio.volume = Math.min(MAX_VOLUME, audio.volume + step);
+      if (audio.volume >= MAX_VOLUME) clearInterval(fade);
+    }, interval);
+  }
+
+  /* ======================
+     UI
+  ====================== */
+
+  let currentMusic = null;
+  let currentMusicButton = null;
+
+  function initUI() {
     const effectsGrid = document.getElementById('effectsGrid');
     const musicGrid = document.getElementById('musicGrid');
 
-    let currentMusic = null;
-    let currentMusicButton = null;
-
-    function fadeOut(audio, callback) {
-      if (!audio) return;
-
-      let step = audio.volume / FADE_STEPS;
-      let interval = FADE_TIME / FADE_STEPS;
-
-      const fade = setInterval(() => {
-        audio.volume = Math.max(0, audio.volume - step);
-
-        if (audio.volume <= 0) {
-          clearInterval(fade);
-          audio.pause();
-          audio.currentTime = 0;
-          callback && callback();
-        }
-      }, interval);
-    }
-
-    function fadeIn(audio) {
-      audio.volume = 0;
-      audio.play();
-
-      let step = MAX_VOLUME / FADE_STEPS;
-      let interval = FADE_TIME / FADE_STEPS;
-
-      const fade = setInterval(() => {
-        audio.volume = Math.min(MAX_VOLUME, audio.volume + step);
-        if (audio.volume >= MAX_VOLUME) clearInterval(fade);
-      }, interval);
-    }
-
-    /* 🔊 EFECTOS */
-    function createEffectButton({ title, src }) {
+    effects.forEach(effect => {
       const btn = document.createElement('button');
-      btn.textContent = title;
+      btn.textContent = effect.title;
 
-      btn.addEventListener('click', () => {
-        const audio = new Audio(src);
+      btn.onclick = () => {
+        effect.audio.currentTime = 0;
         btn.classList.add('active');
+        effect.audio.play();
 
-        audio.play();
-
-        audio.addEventListener('ended', () => {
+        effect.audio.onended = () => {
           btn.classList.remove('active');
-        });
-      });
+        };
+      };
 
-      return btn;
-    }
+      effectsGrid.appendChild(btn);
+    });
 
-    /* 🎵 MÚSICA */
-    function createMusicButton({ title, src }) {
+    musicas.forEach(musica => {
       const btn = document.createElement('button');
-      btn.textContent = title;
+      btn.textContent = musica.title;
       btn.classList.add('music');
 
-      const audio = new Audio(src);
-      audio.loop = true;
-
-      btn.addEventListener('click', () => {
-        if (currentMusic === audio) return;
+      btn.onclick = () => {
+        if (currentMusic === musica.audio) return;
 
         if (currentMusic) {
           fadeOut(currentMusic);
           currentMusicButton.classList.remove('active');
         }
 
-        currentMusic = audio;
+        currentMusic = musica.audio;
         currentMusicButton = btn;
 
         btn.classList.add('active');
-        fadeIn(audio);
-      });
+        fadeIn(musica.audio);
+      };
 
-      return btn;
-    }
-
-    effects.forEach(effect => {
-      effectsGrid.appendChild(createEffectButton(effect));
+      musicGrid.appendChild(btn);
     });
+  }
 
-    musicas.forEach(musica => {
-      musicGrid.appendChild(createMusicButton(musica));
-    });
-  </script>
+  /* ======================
+     START
+  ====================== */
+
+  preloadAll();
+</script>
+
 
 </body>
 </html>
