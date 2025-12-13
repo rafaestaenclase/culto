@@ -100,119 +100,128 @@
   </div>
 
 <script>
-  /* ======================
-     CONFIG
-  ====================== */
+/* ======================
+   CONFIG
+====================== */
 
-  const effects = [
-    { title: 'Agua', src: './efx/agua.mp3' },
-    { title: 'Moviendo Piedra', src: './efx/moviendoPiedra.mp3' }
-  ];
+const effects = [
+  { title: 'Agua', src: './efx/agua.mp3' },
+  { title: 'Moviendo Piedra', src: './efx/moviendoPiedra.mp3' }
+];
 
-  const musicas = [
-    { title: 'Fiesta', src: './music/fiesta.mp3' },
-    { title: 'Árabe', src: './music/arabe.mp3' }
-  ];
+const musicas = [
+  { title: 'Fiesta', src: './music/fiesta.mp3' },
+  { title: 'Árabe', src: './music/arabe.mp3' }
+];
 
-  /* ======================
-     PRELOAD
-  ====================== */
+/* ======================
+   PRELOAD
+====================== */
 
-  function preloadAudio(src, loop = false) {
-    return new Promise((resolve, reject) => {
-      const audio = new Audio();
-      audio.src = src;
-      audio.loop = loop;
-      audio.preload = 'auto';
+function preloadAudio(src, loop = false) {
+  return new Promise((resolve, reject) => {
+    const audio = new Audio();
+    audio.src = src;
+    audio.loop = loop;
+    audio.preload = 'auto';
 
-      audio.addEventListener('canplaythrough', () => resolve(audio), { once: true });
-      audio.addEventListener('loadedmetadata', () => resolve(audio), { once: true });
-      audio.addEventListener('error', () => reject(`No se pudo cargar ${src}`), { once: true });
-    });
-  }
+    audio.addEventListener('canplaythrough', () => resolve(audio), { once: true });
+    audio.addEventListener('loadedmetadata', () => resolve(audio), { once: true });
+    audio.addEventListener('error', () => reject(`No se pudo cargar ${src}`), { once: true });
+  });
+}
 
-  async function preloadAll() {
-    try {
-      for (const e of effects) {
-        e.audio = await preloadAudio(e.src);
-      }
-
-      for (const m of musicas) {
-        m.audio = await preloadAudio(m.src, true);
-      }
-
-      document.getElementById('loader').style.display = 'none';
-      document.getElementById('app').style.display = 'block';
-      initUI();
-    } catch (err) {
-      alert(err);
-      console.error(err);
+async function preloadAll() {
+  try {
+    for (const e of effects) {
+      e.audio = await preloadAudio(e.src);
     }
+
+    for (const m of musicas) {
+      m.audio = await preloadAudio(m.src, true);
+    }
+
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initUI();
+  } catch (err) {
+    alert(err);
+    console.error(err);
   }
+}
 
-  /* ======================
-     UI
-  ====================== */
+/* ======================
+   UI
+====================== */
 
-  let currentMusic = null;
-  let currentMusicButton = null;
+let currentMusic = null;
+let currentMusicButton = null;
 
-  function initUI() {
-    const effectsGrid = document.getElementById('effectsGrid');
-    const musicGrid = document.getElementById('musicGrid');
+function initUI() {
+  const effectsGrid = document.getElementById('effectsGrid');
+  const musicGrid = document.getElementById('musicGrid');
 
-    // EFECTOS
-    effects.forEach(effect => {
-      const btn = document.createElement('button');
-      btn.textContent = effect.title;
+  /* ========= EFECTOS (SE SOLAPAN) ========= */
+  effects.forEach(effect => {
+    const btn = document.createElement('button');
+    btn.textContent = effect.title;
 
-      btn.onclick = () => {
-        effect.audio.currentTime = 0;
-        btn.classList.add('active');
-        effect.audio.play();
+    btn.onclick = () => {
+      const sound = effect.audio.cloneNode();
+      btn.classList.add('active');
+      sound.play();
 
-        effect.audio.onended = () => {
-          btn.classList.remove('active');
-        };
+      sound.onended = () => {
+        btn.classList.remove('active');
       };
+    };
 
-      effectsGrid.appendChild(btn);
-    });
+    effectsGrid.appendChild(btn);
+  });
 
-    // MÚSICA (CAMBIO DIRECTO)
-    musicas.forEach(musica => {
-      const btn = document.createElement('button');
-      btn.textContent = musica.title;
-      btn.classList.add('music');
+  /* ========= MÚSICA (TOGGLE) ========= */
+  musicas.forEach(musica => {
+    const btn = document.createElement('button');
+    btn.textContent = musica.title;
+    btn.classList.add('music');
 
-      btn.onclick = () => {
-        if (currentMusic === musica.audio) return;
+    btn.onclick = () => {
 
-        if (currentMusic) {
-          currentMusic.pause();
-          currentMusic.currentTime = 0;
-          currentMusicButton.classList.remove('active');
-        }
+      // Si pulsas la misma música → parar
+      if (currentMusic === musica.audio) {
+        currentMusic.pause();
+        currentMusic.currentTime = 0;
+        btn.classList.remove('active');
+        currentMusic = null;
+        currentMusicButton = null;
+        return;
+      }
 
-        currentMusic = musica.audio;
-        currentMusicButton = btn;
+      // Parar la anterior si hay otra
+      if (currentMusic) {
+        currentMusic.pause();
+        currentMusic.currentTime = 0;
+        currentMusicButton.classList.remove('active');
+      }
 
-        musica.audio.currentTime = 0;
-        musica.audio.volume = 1;
-        musica.audio.play();
+      // Reproducir la nueva
+      currentMusic = musica.audio;
+      currentMusicButton = btn;
+      musica.audio.currentTime = 0;
+      musica.audio.volume = 1;
+      musica.audio.play();
+      btn.classList.add('active');
+    };
 
-        btn.classList.add('active');
-      };
+    musicGrid.appendChild(btn);
+  });
+}
 
-      musicGrid.appendChild(btn);
-    });
-  }
+/* ======================
+   START
+====================== */
 
-  /* ======================
-     START
-  ====================== */
-
-  preloadAll();
+preloadAll();
 </script>
 
 </body>
