@@ -120,8 +120,8 @@
   ];
 
   const musicas = [
-    { title: 'Fiesta', src: 'music/fiesta.mp3' },
-    { title: 'Árabe', src: 'music/arabe.mp3' }
+    { title: 'Fiesta', src: './music/fiesta.mp3' },
+    { title: 'Árabe', src: './music/arabe.mp3' }
   ];
 
   /* ======================
@@ -140,28 +140,33 @@
       audio.preload = 'auto';
 
       audio.addEventListener('canplaythrough', () => {
-        loadedAudios++;
         resolve(audio);
-      });
+      }, { once: true });
 
       audio.addEventListener('error', () => {
-        reject(`Error cargando ${src}`);
-      });
+        reject(new Error(`❌ No se pudo cargar el archivo:\n${src}`));
+      }, { once: true });
     });
   }
 
   async function preloadAll() {
-    for (const e of effects) {
-      e.audio = await preloadAudio(e.src);
-    }
+    try {
+      for (const e of effects) {
+        e.audio = await preloadAudio(e.src);
+      }
 
-    for (const m of musicas) {
-      m.audio = await preloadAudio(m.src, true);
-    }
+      for (const m of musicas) {
+        m.audio = await preloadAudio(m.src, true);
+      }
 
-    document.getElementById('loader').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
-    initUI();
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+      initUI();
+
+    } catch (error) {
+      alert(error.message);
+      console.error(error);
+    }
   }
 
   /* ======================
