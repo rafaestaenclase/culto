@@ -1,103 +1,37 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Botonera de Sonidos</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: system-ui, sans-serif;
-    }
-
-    body {
-      height: 80vh;
-      max-width: 600px;
-      margin: 0 auto;
-      display: flex;
-      flex-direction: column;
-      background: #0f0f0f;
-      color: #fff;
-    }
-
-    h2 {
-      padding: 12px;
-      margin-bottom: 10px;
-      text-align: center;
-      background: #181818;
-      border-bottom: 1px solid #222;
-    }
-
-    #loader {
-      height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #0f0f0f;
-      color: #ff9800;
-      font-size: 20px;
-    }
-
-    .container {
-      padding-bottom: 10px;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      padding: 0 10px;
-    }
-
-    button {
-      aspect-ratio: 1 / 1;
-      background: #222;
-      border: none;
-      border-radius: 12px;
-      color: #fff;
-      font-size: 14px;
-      cursor: pointer;
-      transition: transform 0.1s, background 0.2s, box-shadow 0.2s;
-    }
-
-    button:active {
-      transform: scale(0.96);
-    }
-
-    button.active {
-      background: #ff9800;
-      box-shadow: 0 0 12px rgba(255, 152, 0, 0.7);
-      color: #000;
-    }
-
-    button.music.active {
-      background: #4caf50;
-      box-shadow: 0 0 14px rgba(76, 175, 80, 0.8);
-      color: #000;
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Botonera de Sonidos</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, sans-serif; }
+  body { height: 80vh; max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; background: #0f0f0f; color: #fff; }
+  h2 { padding: 12px; margin-bottom: 10px; text-align: center; background: #181818; border-bottom: 1px solid #222; }
+  #loader { height: 100vh; display: flex; align-items: center; justify-content: center; background: #0f0f0f; color: #ff9800; font-size: 20px; }
+  .container { padding-bottom: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 0 10px; }
+  button { aspect-ratio: 1 / 1; background: #222; border: none; border-radius: 12px; color: #fff; font-size: 14px; cursor: pointer; transition: transform 0.1s, background 0.2s, box-shadow 0.2s; }
+  button:active { transform: scale(0.96); }
+  button.active { background: #ff9800; box-shadow: 0 0 12px rgba(255, 152, 0, 0.7); color: #000; }
+  button.music.active { background: #4caf50; box-shadow: 0 0 14px rgba(76, 175, 80, 0.8); color: #000; }
+</style>
 </head>
-
 <body>
 
-  <div id="loader">
-    <h2>Cargando sonidos...</h2>
+<div id="loader"><h2>Cargando sonidos...</h2></div>
+
+<div id="app" style="display:none">
+  <div class="container">
+    <h2>Efectos</h2>
+    <div id="effectsGrid" class="grid"></div>
   </div>
 
-  <div id="app" style="display:none">
-    <div class="container">
-      <h2>Efectos</h2>
-      <div id="effectsGrid" class="grid"></div>
-    </div>
-
-    <div class="container">
-      <h2>Música</h2>
-      <div id="musicGrid" class="grid"></div>
-    </div>
+  <div class="container">
+    <h2>Música</h2>
+    <div id="musicGrid" class="grid"></div>
   </div>
+</div>
 
 <script>
 /* ======================
@@ -133,13 +67,8 @@ function preloadAudio(src, loop = false) {
 
 async function preloadAll() {
   try {
-    for (const e of effects) {
-      e.audio = await preloadAudio(e.src);
-    }
-
-    for (const m of musicas) {
-      m.audio = await preloadAudio(m.src, true);
-    }
+    for (const e of effects) e.audio = await preloadAudio(e.src);
+    for (const m of musicas) m.audio = await preloadAudio(m.src, true);
 
     document.getElementById('loader').style.display = 'none';
     document.getElementById('app').style.display = 'block';
@@ -156,6 +85,33 @@ async function preloadAll() {
 
 let currentMusic = null;
 let currentMusicButton = null;
+let fadeAnim = null;
+
+function fadeOut(audio, duration = 1000) {
+  return new Promise(resolve => {
+    if (!audio) return resolve();
+    let startVolume = audio.volume;
+    let startTime = null;
+
+    const step = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const fraction = Math.min(elapsed / duration, 1);
+      audio.volume = startVolume * (1 - fraction);
+      if (fraction < 1) {
+        fadeAnim = requestAnimationFrame(step);
+      } else {
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = startVolume;
+        resolve();
+      }
+    };
+
+    cancelAnimationFrame(fadeAnim); // cancela cualquier fade previo
+    fadeAnim = requestAnimationFrame(step);
+  });
+}
 
 function initUI() {
   const effectsGrid = document.getElementById('effectsGrid');
@@ -165,50 +121,43 @@ function initUI() {
   effects.forEach(effect => {
     const btn = document.createElement('button');
     btn.textContent = effect.title;
-
     btn.onclick = () => {
       const sound = effect.audio.cloneNode();
       btn.classList.add('active');
       sound.play();
-
-      sound.onended = () => {
-        btn.classList.remove('active');
-      };
+      sound.onended = () => btn.classList.remove('active');
     };
-
     effectsGrid.appendChild(btn);
   });
 
-  /* ========= MÚSICA (TOGGLE) ========= */
+  /* ========= MÚSICA (FADE OUT / TOGGLE) ========= */
   musicas.forEach(musica => {
     const btn = document.createElement('button');
     btn.textContent = musica.title;
     btn.classList.add('music');
 
-    btn.onclick = () => {
-
-      // Si pulsas la misma música → parar
+    btn.onclick = async () => {
+      // si pulsas la misma música → parar con fade
       if (currentMusic === musica.audio) {
-        currentMusic.pause();
-        currentMusic.currentTime = 0;
+        await fadeOut(currentMusic);
         btn.classList.remove('active');
         currentMusic = null;
         currentMusicButton = null;
         return;
       }
 
-      // Parar la anterior si hay otra
+      // si hay otra música sonando → fade out
       if (currentMusic) {
-        currentMusic.pause();
-        currentMusic.currentTime = 0;
-        currentMusicButton.classList.remove('active');
+        const prevButton = currentMusicButton;
+        await fadeOut(currentMusic);
+        if (prevButton) prevButton.classList.remove('active');
       }
 
-      // Reproducir la nueva
+      // reproducir nueva música
       currentMusic = musica.audio;
       currentMusicButton = btn;
-      musica.audio.currentTime = 0;
       musica.audio.volume = 1;
+      musica.audio.currentTime = 0;
       musica.audio.play();
       btn.classList.add('active');
     };
