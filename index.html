@@ -58,7 +58,6 @@ function preloadAudio(src, loop = false) {
     audio.src = src;
     audio.loop = loop;
     audio.preload = 'auto';
-
     audio.addEventListener('canplaythrough', () => resolve(audio), { once: true });
     audio.addEventListener('loadedmetadata', () => resolve(audio), { once: true });
     audio.addEventListener('error', () => reject(`No se pudo cargar ${src}`), { once: true });
@@ -69,7 +68,6 @@ async function preloadAll() {
   try {
     for (const e of effects) e.audio = await preloadAudio(e.src);
     for (const m of musicas) m.audio = await preloadAudio(m.src, true);
-
     document.getElementById('loader').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     initUI();
@@ -86,8 +84,10 @@ async function preloadAll() {
 let currentMusic = null;
 let currentMusicButton = null;
 let fadeAnim = null;
+let nextMusic = null;      // audio que va a sonar
+let nextMusicButton = null; // botón visual del futuro audio
 
-function fadeOut(audio, duration = 1000) {
+function fadeOut(audio, duration = 500) {
   return new Promise(resolve => {
     if (!audio) return resolve();
     let startVolume = audio.volume;
@@ -108,7 +108,7 @@ function fadeOut(audio, duration = 1000) {
       }
     };
 
-    cancelAnimationFrame(fadeAnim); // cancela cualquier fade previo
+    cancelAnimationFrame(fadeAnim); // cancela fade previo
     fadeAnim = requestAnimationFrame(step);
   });
 }
@@ -117,7 +117,7 @@ function initUI() {
   const effectsGrid = document.getElementById('effectsGrid');
   const musicGrid = document.getElementById('musicGrid');
 
-  /* ========= EFECTOS (SE SOLAPAN) ========= */
+  // Efectos (solapables)
   effects.forEach(effect => {
     const btn = document.createElement('button');
     btn.textContent = effect.title;
@@ -130,36 +130,47 @@ function initUI() {
     effectsGrid.appendChild(btn);
   });
 
-  /* ========= MÚSICA (FADE OUT / TOGGLE) ========= */
+  // Música con fade out / visual anticipada
   musicas.forEach(musica => {
     const btn = document.createElement('button');
     btn.textContent = musica.title;
     btn.classList.add('music');
 
     btn.onclick = async () => {
-      // si pulsas la misma música → parar con fade
+
+      // Toggle misma música
       if (currentMusic === musica.audio) {
         await fadeOut(currentMusic);
         btn.classList.remove('active');
         currentMusic = null;
         currentMusicButton = null;
+        nextMusic = null;
+        nextMusicButton = null;
         return;
       }
 
-      // si hay otra música sonando → fade out
+      // Marcar botón futuro inmediatamente
+      if (nextMusicButton && nextMusicButton !== btn) nextMusicButton.classList.remove('active');
+      nextMusic = musica.audio;
+      nextMusicButton = btn;
+      btn.classList.add('active');
+
+      // Fade out de la música actual si existe
       if (currentMusic) {
         const prevButton = currentMusicButton;
         await fadeOut(currentMusic);
         if (prevButton) prevButton.classList.remove('active');
       }
 
-      // reproducir nueva música
-      currentMusic = musica.audio;
-      currentMusicButton = btn;
-      musica.audio.volume = 1;
-      musica.audio.currentTime = 0;
-      musica.audio.play();
-      btn.classList.add('active');
+      // Iniciar nueva música
+      currentMusic = nextMusic;
+      currentMusicButton = nextMusicButton;
+      nextMusic = null;
+      nextMusicButton = null;
+
+      currentMusic.volume = 1;
+      currentMusic.currentTime = 0;
+      currentMusic.play();
     };
 
     musicGrid.appendChild(btn);
