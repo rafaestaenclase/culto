@@ -132,22 +132,49 @@
   let loadedAudios = 0;
   const totalAudios = effects.length + musicas.length;
 
-  function preloadAudio(src, loop = false) {
+  function preloadAudio(src, loop = false, timeout = 5000) {
     return new Promise((resolve, reject) => {
       const audio = new Audio();
       audio.src = src;
       audio.loop = loop;
       audio.preload = 'auto';
 
-      audio.addEventListener('canplaythrough', () => {
-        resolve(audio);
-      }, { once: true });
+      let resolved = false;
 
-      audio.addEventListener('error', () => {
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
+        resolve(audio);
+      };
+
+      const fail = () => {
+        if (resolved) return;
+        resolved = true;
+        cleanup();
         reject(new Error(`❌ No se pudo cargar el archivo:\n${src}`));
-      }, { once: true });
+      };
+
+      const cleanup = () => {
+        audio.removeEventListener('canplaythrough', done);
+        audio.removeEventListener('loadedmetadata', done);
+        audio.removeEventListener('error', fail);
+        clearTimeout(timer);
+      };
+
+      // ✅ Eventos fiables en móvil
+      audio.addEventListener('canplaythrough', done, { once: true });
+      audio.addEventListener('loadedmetadata', done, { once: true });
+      audio.addEventListener('error', fail, { once: true });
+
+      // ⏱️ Timeout de seguridad
+      const timer = setTimeout(() => {
+        console.warn(`⚠️ Timeout precargando ${src}, continuando`);
+        done();
+      }, timeout);
     });
   }
+
 
   async function preloadAll() {
     try {
@@ -168,6 +195,7 @@
       console.error(error);
     }
   }
+
 
   /* ======================
      FADE
