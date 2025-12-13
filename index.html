@@ -41,7 +41,6 @@
       font-size: 20px;
     }
 
-
     .container {
       padding-bottom: 10px;
     }
@@ -61,24 +60,19 @@
       color: #fff;
       font-size: 14px;
       cursor: pointer;
-      transition: 
-        transform 0.1s,
-        background 0.2s,
-        box-shadow 0.2s;
+      transition: transform 0.1s, background 0.2s, box-shadow 0.2s;
     }
 
     button:active {
       transform: scale(0.96);
     }
 
-    /* 🔥 BOTÓN ACTIVO */
     button.active {
       background: #ff9800;
       box-shadow: 0 0 12px rgba(255, 152, 0, 0.7);
       color: #000;
     }
 
-    /* Diferenciamos música */
     button.music.active {
       background: #4caf50;
       box-shadow: 0 0 14px rgba(76, 175, 80, 0.8);
@@ -110,10 +104,6 @@
      CONFIG
   ====================== */
 
-  const FADE_TIME = 2000;
-  const MAX_VOLUME = 1;
-  const FADE_STEPS = 30;
-
   const effects = [
     { title: 'Agua', src: './efx/agua.mp3' },
     { title: 'Moviendo Piedra', src: './efx/moviendoPiedra.mp3' }
@@ -128,53 +118,18 @@
      PRELOAD
   ====================== */
 
-  const allAudios = [];
-  let loadedAudios = 0;
-  const totalAudios = effects.length + musicas.length;
-
-  function preloadAudio(src, loop = false, timeout = 5000) {
+  function preloadAudio(src, loop = false) {
     return new Promise((resolve, reject) => {
       const audio = new Audio();
       audio.src = src;
       audio.loop = loop;
       audio.preload = 'auto';
 
-      let resolved = false;
-
-      const done = () => {
-        if (resolved) return;
-        resolved = true;
-        cleanup();
-        resolve(audio);
-      };
-
-      const fail = () => {
-        if (resolved) return;
-        resolved = true;
-        cleanup();
-        reject(new Error(`❌ No se pudo cargar el archivo:\n${src}`));
-      };
-
-      const cleanup = () => {
-        audio.removeEventListener('canplaythrough', done);
-        audio.removeEventListener('loadedmetadata', done);
-        audio.removeEventListener('error', fail);
-        clearTimeout(timer);
-      };
-
-      // ✅ Eventos fiables en móvil
-      audio.addEventListener('canplaythrough', done, { once: true });
-      audio.addEventListener('loadedmetadata', done, { once: true });
-      audio.addEventListener('error', fail, { once: true });
-
-      // ⏱️ Timeout de seguridad
-      const timer = setTimeout(() => {
-        console.warn(`⚠️ Timeout precargando ${src}, continuando`);
-        done();
-      }, timeout);
+      audio.addEventListener('canplaythrough', () => resolve(audio), { once: true });
+      audio.addEventListener('loadedmetadata', () => resolve(audio), { once: true });
+      audio.addEventListener('error', () => reject(`No se pudo cargar ${src}`), { once: true });
     });
   }
-
 
   async function preloadAll() {
     try {
@@ -189,44 +144,10 @@
       document.getElementById('loader').style.display = 'none';
       document.getElementById('app').style.display = 'block';
       initUI();
-
-    } catch (error) {
-      alert(error.message);
-      console.error(error);
+    } catch (err) {
+      alert(err);
+      console.error(err);
     }
-  }
-
-
-  /* ======================
-     FADE
-  ====================== */
-
-  function fadeOut(audio, callback) {
-    let step = audio.volume / FADE_STEPS;
-    let interval = FADE_TIME / FADE_STEPS;
-
-    const fade = setInterval(() => {
-      audio.volume = Math.max(0, audio.volume - step);
-      if (audio.volume <= 0) {
-        clearInterval(fade);
-        audio.pause();
-        audio.currentTime = 0;
-        callback && callback();
-      }
-    }, interval);
-  }
-
-  function fadeIn(audio) {
-    audio.volume = 0;
-    audio.play();
-
-    let step = MAX_VOLUME / FADE_STEPS;
-    let interval = FADE_TIME / FADE_STEPS;
-
-    const fade = setInterval(() => {
-      audio.volume = Math.min(MAX_VOLUME, audio.volume + step);
-      if (audio.volume >= MAX_VOLUME) clearInterval(fade);
-    }, interval);
   }
 
   /* ======================
@@ -240,6 +161,7 @@
     const effectsGrid = document.getElementById('effectsGrid');
     const musicGrid = document.getElementById('musicGrid');
 
+    // EFECTOS
     effects.forEach(effect => {
       const btn = document.createElement('button');
       btn.textContent = effect.title;
@@ -257,6 +179,7 @@
       effectsGrid.appendChild(btn);
     });
 
+    // MÚSICA (CAMBIO DIRECTO)
     musicas.forEach(musica => {
       const btn = document.createElement('button');
       btn.textContent = musica.title;
@@ -266,15 +189,19 @@
         if (currentMusic === musica.audio) return;
 
         if (currentMusic) {
-          fadeOut(currentMusic);
+          currentMusic.pause();
+          currentMusic.currentTime = 0;
           currentMusicButton.classList.remove('active');
         }
 
         currentMusic = musica.audio;
         currentMusicButton = btn;
 
+        musica.audio.currentTime = 0;
+        musica.audio.volume = 1;
+        musica.audio.play();
+
         btn.classList.add('active');
-        fadeIn(musica.audio);
       };
 
       musicGrid.appendChild(btn);
@@ -287,7 +214,6 @@
 
   preloadAll();
 </script>
-
 
 </body>
 </html>
