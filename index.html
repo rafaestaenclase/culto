@@ -31,6 +31,12 @@
     <h2>Música</h2>
     <div id="musicGrid" class="grid"></div>
   </div>
+
+  <div class="container">
+    <h2>Ambiente</h2>
+    <div id="ambienceGrid" class="grid"></div>
+  </div>
+
 </div>
 
 <script>
@@ -47,6 +53,13 @@ const musicas = [
   { title: 'Fiesta', src: './music/fiesta.mp3' },
   { title: 'Árabe', src: './music/arabe.mp3' }
 ];
+
+const ambientes = [
+  { title: 'Lluvia', src: './music/fiesta.mp3' },
+  { title: 'Bosque', src: './music/fiesta.mp3' },
+  { title: 'Ciudad', src: './music/fiesta.mp3' }
+];
+
 
 /* ======================
    PRELOAD
@@ -68,6 +81,7 @@ async function preloadAll() {
   try {
     for (const e of effects) e.audio = await preloadAudio(e.src);
     for (const m of musicas) m.audio = await preloadAudio(m.src, true);
+    for (const a of ambientes) a.audio = await preloadAudio(a.src, true);
     document.getElementById('loader').style.display = 'none';
     document.getElementById('app').style.display = 'block';
     initUI();
@@ -112,6 +126,54 @@ function fadeOut(audio, duration = 500) {
     fadeAnim = requestAnimationFrame(step);
   });
 }
+
+function fadeIn(audio, duration = 800, targetVolume = 1) {
+  audio.volume = 0;
+  audio.play();
+
+  let startTime = null;
+
+  return new Promise(resolve => {
+    const step = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const fraction = Math.min(elapsed / duration, 1);
+      audio.volume = targetVolume * fraction;
+
+      if (fraction < 1) {
+        requestAnimationFrame(step);
+      } else {
+        resolve();
+      }
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+function fadeOutAndStop(audio, duration = 800) {
+  let startVolume = audio.volume;
+  let startTime = null;
+
+  return new Promise(resolve => {
+    const step = (timestamp) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = timestamp - startTime;
+      const fraction = Math.min(elapsed / duration, 1);
+      audio.volume = startVolume * (1 - fraction);
+
+      if (fraction < 1) {
+        requestAnimationFrame(step);
+      } else {
+        audio.pause();
+        audio.currentTime = 0; // 🔥 vuelve a 0
+        audio.volume = startVolume;
+        resolve();
+      }
+    };
+    requestAnimationFrame(step);
+  });
+}
+
 
 function initUI() {
   const effectsGrid = document.getElementById('effectsGrid');
@@ -175,7 +237,39 @@ function initUI() {
 
     musicGrid.appendChild(btn);
   });
+
+
+  // Ambiente (multi-play + toggle + fade in/out)
+  const ambienceGrid = document.getElementById('ambienceGrid');
+
+  ambientes.forEach(amb => {
+    const btn = document.createElement('button');
+    btn.textContent = amb.title;
+
+    let isPlaying = false;
+    let isFading = false;
+
+    btn.onclick = async () => {
+      if (isFading) return;
+      isFading = true;
+
+      if (!isPlaying) {
+        btn.classList.add('active');
+        await fadeIn(amb.audio, 800);
+        isPlaying = true;
+      } else {
+        await fadeOutAndStop(amb.audio, 800);
+        btn.classList.remove('active');
+        isPlaying = false;
+      }
+
+      isFading = false;
+    };
+
+    ambienceGrid.appendChild(btn);
+  });
 }
+
 
 /* ======================
    START
