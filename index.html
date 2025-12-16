@@ -61,15 +61,14 @@ const musicas = [
 
 
 const ambientes = [
-  { title: '📣 Abucheos', src: './ambient/genteAbucheos.mp3', loopSmooth: true },
-  { title: '😭 Multitud Llorando', src: './ambient/genteLlorando.mp3', loopSmooth: true },
-  { title: '🗣️ Murmullo de Gente', src: './ambient/genteHablando.mp3', loopSmooth: true },
-  { title: '⚡ Rayos y Tormenta', src: './ambient/rayos.mp3', loopSmooth: false },
-  { title: '🥾 Soldados Marchando', src: './ambient/soldadosMarchando.mp3', loopSmooth: true },
-  { title: '🌋 Temblores', src: './ambient/temblores.mp3', loopSmooth: true },
-  { title: '🌬️ Viento del Desierto', src: './ambient/vientoDesierto.mp3', loopSmooth: true }
+  { title: '📣 Abucheos', src: './ambient/genteAbucheos.mp3' },
+  { title: '😭 Multitud Llorando', src: './ambient/genteLlorando.mp3' },
+  { title: '🗣️ Murmullo de Gente', src: './ambient/genteHablando.mp3' },
+  { title: '⚡ Rayos y Tormenta', src: './ambient/rayos.mp3' },
+  { title: '🥾 Soldados Marchando', src: './ambient/soldadosMarchando.mp3' },
+  { title: '🌋 Temblores', src: './ambient/temblores.mp3' },
+  { title: '🌬️ Viento del Desierto', src: './ambient/vientoDesierto.mp3' }
 ];
-
 
 
 
@@ -267,11 +266,7 @@ function initUI() {
 
       if (!isPlaying) {
         btn.classList.add('active');
-        if (amb.loopSmooth) {
-          playSmoothLoop(amb.audio, 1.0); // 1s crossfade
-        } else {
-          await fadeIn(amb.audio, 800);
-        }
+        await fadeIn(amb.audio, 800);
         isPlaying = true;
       } else {
         await fadeOutAndStop(amb.audio, 800);
@@ -282,55 +277,9 @@ function initUI() {
       isFading = false;
     };
 
-
     ambienceGrid.appendChild(btn);
   });
 }
-
-function playSmoothLoop(audio, fadeDuration = 1.0) {
-  audio.volume = 1;
-  audio.play();
-
-  const fadeTime = fadeDuration * 1000; // en ms
-  let fadeInterval = null;
-
-  const scheduleLoop = () => {
-    const timeLeft = audio.duration * 1000 - audio.currentTime * 1000;
-    clearTimeout(fadeInterval);
-    if (timeLeft > fadeTime) {
-      fadeInterval = setTimeout(() => {
-        // crea un clone para crossfade
-        const nextAudio = audio.cloneNode();
-        nextAudio.volume = 0;
-        nextAudio.play();
-
-        const start = performance.now();
-        const step = (now) => {
-          const elapsed = now - start;
-          const fraction = Math.min(elapsed / fadeTime, 1);
-          audio.volume = 1 - fraction;
-          nextAudio.volume = fraction;
-          if (fraction < 1) {
-            requestAnimationFrame(step);
-          } else {
-            audio.pause();
-            audio.currentTime = 0;
-            // Reemplaza el audio original
-            audio.src = nextAudio.src;
-            audio.currentTime = nextAudio.currentTime;
-            audio.volume = 1;
-            scheduleLoop();
-          }
-        };
-        requestAnimationFrame(step);
-      }, timeLeft - fadeTime);
-    }
-  };
-
-  scheduleLoop();
-  return audio;
-}
-
 
 
 /* ======================
